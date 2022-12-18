@@ -29,7 +29,7 @@ python script.py --query-file [query_file] --output-file [output_file]
     
   ## Example
   ```bash
-  python script.py --query-file queries.txt --output-file tweets.csv --max-results 100
+  python script.py --query-file queries.txt --output-file tweets.csv --start-time "2022-12-13"--end-time "2022-12-18" --max-results 100
   ```
 This will search for tweets matching the queries in queries.txt, starting from the earliest possible time and ending at the current time, and return a maximum of 100 results. The results will be written to tweets.csv in CSV format.
 
