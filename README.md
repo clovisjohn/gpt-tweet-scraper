@@ -1,4 +1,4 @@
-# gpt-tweet-filter
+# gpt-tweet-scraper
 This script searches for tweets matching a list of queries, filter them according to a yes or no gpt query and converts the results to CSV format.
 
 ## Requirements
