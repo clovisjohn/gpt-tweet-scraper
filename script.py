@@ -11,6 +11,12 @@ BEARER_TOKEN = ""
 OAI_API_KEY = ""
 GPT_QUERY = ""
 
+MAX_TOKEN_PER_TWEET = 280//4
+
+TOKEN_LIMIT_PER_MINUTE = 120000
+
+tokens_used = 0
+
 client = Twarc2(bearer_token=BEARER_TOKEN)
 openai.api_key = OAI_API_KEY
 
@@ -25,12 +31,13 @@ def gpt3_batch_size(texts, gpt3_query_size):
     Returns:
         int: The maximum number of texts that can be included in a single request.
     """
-    max_tokens = 140000
-    tokens_per_text = sum(len(text) // 4 for text in texts)
-    return max(1, min(len(texts), max_tokens // (tokens_per_text + gpt3_query_size)))
+    available_tokens = TOKEN_LIMIT_PER_MINUTE-tokens_used
+    total_tokens = sum( (len(text) // 4)+gpt3_query_size for text in texts)
+    return len(texts) if total_tokens <= available_tokens else max(1, available_tokens // (MAX_TOKEN_PER_TWEET + gpt3_query_size))
 
 
 def gptCheck(texts):
+    global tokens_used
     """
     Check whether the given texts meet some criteria for further processing.
 
@@ -60,6 +67,7 @@ def gptCheck(texts):
         # match completions to prompts by index
         temp = [""] * len(prompts)
         for choice in response.choices:
+            print(choice.text.lower())
             temp[choice.index] = choice.text.lower()
 
         #print(temp)
@@ -67,6 +75,13 @@ def gptCheck(texts):
             "yes" in r for r in temp
         ])
         i += step
+
+        tokens_used += sum(len(prompt) // 4 for prompt in prompts)
+
+        if(tokens_used>TOKEN_LIMIT_PER_MINUTE):
+            time.sleep(61)
+            tokens_used=0
+
     return results
 
 
@@ -108,7 +123,14 @@ def search_tweets(queries, start_time, end_time, max_results):
         )
         for page in search_results:
             tweets = ensure_flattened(page)
-            keep_list = gptCheck([tweet["text"] for tweet in tweets])
+            try:
+                keep_list = gptCheck([tweet["text"] for tweet in tweets])
+            except openai.error.RateLimitError :
+                print("Rate limit hit, will retry in 1 min")
+                time.sleep(61)
+                tokens_used=0
+                keep_list = gptCheck([tweet["text"] for tweet in tweets])
+
             for tweet, keep in zip(tweets, keep_list):
                 if keep:
                     yield tweet
