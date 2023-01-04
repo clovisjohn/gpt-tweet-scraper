@@ -1,26 +1,74 @@
 import argparse
 import datetime
 import json
+import openai
+import time
 from twarc.client2 import Twarc2
 from twarc.expansions import ensure_flattened
 from twarc_csv import CSVConverter
 
 BEARER_TOKEN = ""
+OAI_API_KEY = ""
 GPT_QUERY = ""
 
 client = Twarc2(bearer_token=BEARER_TOKEN)
+openai.api_key = OAI_API_KEY
 
-def chatGPT(text):
+def gpt3_batch_size(texts, gpt3_query_size):
     """
-    Check whether the given text meets some criteria for further processing.
+    Calculate the maximum number of texts that can be included in a single request to the GPT-3 API.
 
     Args:
-        text (str): The text to check.
+        texts (List[str]): The texts to be included in the request.
+        gpt3_query_size (int): The size of the GPT-3 query.
 
     Returns:
-        bool: True if the text should be processed further, False otherwise.
+        int: The maximum number of texts that can be included in a single request.
     """
-    #return True
+    max_tokens = 140000
+    tokens_per_text = sum(len(text) // 4 for text in texts)
+    return max(1, min(len(texts), max_tokens // (tokens_per_text + gpt3_query_size)))
+
+
+def gptCheck(texts):
+    """
+    Check whether the given texts meet some criteria for further processing.
+
+    Args:
+        texts (List[str]): The texts to check.
+
+    Returns:
+        List[bool]: A list of booleans indicating whether each text should be processed further.
+    """
+    gpt3_query_size = len(GPT_QUERY)// 4
+    results = []
+    i = 0
+    while i < len(texts):
+        step = gpt3_batch_size(texts[i:], gpt3_query_size)
+        prompts = [GPT_QUERY + " \"{textQ}\"".format(textQ=text) for text in texts[i:i+step]]
+
+        response = openai.Completion.create(
+            engine="text-curie-001",
+            prompt=prompts,
+            temperature=0.7,
+            max_tokens=256,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+        )
+
+        # match completions to prompts by index
+        temp = [""] * len(prompts)
+        for choice in response.choices:
+            temp[choice.index] = choice.text.lower()
+
+        #print(temp)
+        results.extend([
+            "yes" in r for r in temp
+        ])
+        i += step
+    return results
+
 
 
 def convert_to_csv(input_file, output_file):
@@ -59,8 +107,10 @@ def search_tweets(queries, start_time, end_time, max_results):
             query=query, start_time=start_time, end_time=end_time, max_results=max_results
         )
         for page in search_results:
-            for tweet in ensure_flattened(page):
-                if chatGPT(tweet["text"]):
+            tweets = ensure_flattened(page)
+            keep_list = gptCheck([tweet["text"] for tweet in tweets])
+            for tweet, keep in zip(tweets, keep_list):
+                if keep:
                     yield tweet
 
 def main():
