@@ -38,7 +38,7 @@ tweet example
 
 Question: Is this tweet appropriate for all audiences?
 
-Answer: """
+Answer:
 ```
 
 ## Usage
