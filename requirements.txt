@@ -1,0 +1,4 @@
+openai==0.25.0
+pandas==1.5.2
+snscrape==0.4.3.20220106
+python-dotenv==0.21.0

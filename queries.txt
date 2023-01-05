@@ -1,0 +1,1 @@
+from:DeFi_Dad -is:retweet -is:reply
