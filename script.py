@@ -183,13 +183,13 @@ def search_tweets(queries, max_results):
         # Try to check the tweets with the GPT-3 API
         try:
             # Check the tweets with the GPT-3 API
-            keep_list = gpt_check([tweet["content"] for tweet in tweets])
+            keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
             
         # If a rate limit error occurs, wait for 1 minute and try again
         except openai.error.RateLimitError:
             print("Rate limit hit, will retry in 1 min")
             time.sleep(61)
-            keep_list = gpt_check([tweet["content"] for tweet in tweets])
+            keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
             
         # Loop through the tweets and the keep list
         for tweet, keep in zip(tweets, keep_list):
