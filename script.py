@@ -34,7 +34,7 @@ DELAY = 60.0 / RATE_LIMIT_PER_MINUTE
 # Set the OpenAI API key
 openai.api_key = OPENAI_API_KEY
 
-FULL_PROMPT = """Using the following text, answer the following question with Yes or No and provide an explanation
+FULL_PROMPT = """Using the following text, answer the following question with Yes or No. Then provide an explanation of 2 words max if Yes.
 
 Text:
 \"""
@@ -66,6 +66,35 @@ def gpt3_batch_size(texts):
     total_tokens = sum((len(text) // 4) for text in texts)
     return len(texts) if total_tokens <= available_tokens else max(1, available_tokens // (MAX_TOKEN_PER_TWEET + FULL_PROMPT_SIZE))
 
+def gpt4_check(texts,v2Model):
+
+    print("Using new chatCompletion endpoint")
+    
+     # Initialize an empty list to store the results
+    results = []
+    
+    # Format the prompts with the GPT_QUERY and the current texts
+    prompts = [FULL_PROMPT.format(tweet=text) for text in texts]
+
+    for prompt in prompts:
+        try:
+            response = openai.ChatCompletion.create(
+                model=v2Model,
+                messages=[
+                    {"role": "user", "content": prompt},
+                ],
+            )
+        except openai.error.RateLimitError:
+            print("Rate limit hit, will retry in 1 min")
+            time.sleep(61)
+            continue
+
+        
+        gpt_result = response['choices'][0]['message']['content']
+        results.append(["yes" in gpt_result.lower(), gpt_result])
+        #print(gpt_result)
+
+    return results
 
 def gpt_check(texts):
     """
@@ -153,7 +182,7 @@ def convert_to_csv(input_list, output_file):
     df.to_csv(output_file, index=False, header=True)
 
 
-def search_tweets(queries, max_results):
+def search_tweets(queries, max_results,v2Model):
     """
     Search for tweets matching the given queries and yield the tweets that meet certain criteria.
 
@@ -186,8 +215,13 @@ def search_tweets(queries, max_results):
             # Add the dictionary to the tweets list
             tweets.append(temp)
         
-        # Check the tweets with the GPT-3 API
-        keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
+        # Check the tweets with the GPT API
+        if v2Model is None:
+            keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
+        else:
+            keep_list = gpt4_check([tweet["rawContent"] for tweet in tweets],v2Model)
+
+        
             
         # Loop through the tweets and the keep list
         for tweet, keep in zip(tweets, keep_list):
@@ -202,6 +236,7 @@ def main():
     parser.add_argument("--max-results", type=int, default=10, help="maximum number of results to return")
     parser.add_argument("--query-file", type=argparse.FileType("r"), required=True, help="file containing the queries")
     parser.add_argument("--output-file", type=argparse.FileType("w"), required=True, help="output file for the tweets")
+    parser.add_argument("--v2Model", type=str, help="model to use for new chatCompletion endpoint")
     args = parser.parse_args()
 
     # Read the queries from the query file
@@ -213,7 +248,7 @@ def main():
     valid_tweets = []
 
     row_count = 0
-    for tweet in search_tweets(queries, args.max_results):
+    for tweet in search_tweets(queries, args.max_results,args.v2Model):
          valid_tweets.append(tweet)
          if row_count % 50 == 0:
             convert_to_csv(valid_tweets, args.output_file.name)
