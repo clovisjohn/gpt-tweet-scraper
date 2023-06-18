@@ -34,14 +34,16 @@ DELAY = 60.0 / RATE_LIMIT_PER_MINUTE
 # Set the OpenAI API key
 openai.api_key = OPENAI_API_KEY
 
-FULL_PROMPT = """Using the following text, answer the following question with Yes or No. Then provide an explanation of 2 words max if Yes.
+FULL_PROMPT = """
+
+Question: {gpt_Query}
 
 Text:
 \"""
 {tweet}
 \"""
 
-Question: {gpt_Query}
+Instructions : Answer the question with Yes or No. Then provide an explanation of 2 words max if Yes.
 
 Answer: """
 
@@ -181,6 +183,27 @@ def convert_to_csv(input_list, output_file):
     df = pd.DataFrame(input_list)
     df.to_csv(output_file, index=False, header=True)
 
+def scrape_tweets(query, max_results):
+    # Initialize a list to store the tweets
+    tweets = []
+    
+    # Print a message indicating the current query
+    print(f"Analyzing tweets from query {query}")
+    
+    # Loop through the tweets from the query
+    for i, tweet in enumerate(sntwitter.TwitterSearchScraper(query).get_items()):
+        # Break the loop if the maximum number of results has been reached
+        if i > max_results:
+            break
+        
+        # Convert the tweet object to a dictionary and add the user name and query to the dictionary
+        temp = vars(tweet)
+        temp.update({"user_name": tweet.user.username, "twitter_search_query": query})
+        
+        # Add the dictionary to the tweets list
+        tweets.append(temp)
+
+    return tweets 
 
 def search_tweets(queries, max_results,v2Model):
     """
@@ -196,33 +219,14 @@ def search_tweets(queries, max_results,v2Model):
     
     # Loop through the queries
     for query in queries:
-        # Initialize a list to store the tweets
-        tweets = []
-        
-        # Print a message indicating the current query
-        print(f"Analyzing tweets from query {query}")
-        
-        # Loop through the tweets from the query
-        for i, tweet in enumerate(sntwitter.TwitterSearchScraper(query).get_items()):
-            # Break the loop if the maximum number of results has been reached
-            if i > max_results:
-                break
-            
-            # Convert the tweet object to a dictionary and add the user name and query to the dictionary
-            temp = vars(tweet)
-            temp.update({"user_name": tweet.user.username, "twitter_search_query": query})
-            
-            # Add the dictionary to the tweets list
-            tweets.append(temp)
+        tweets = scrape_tweets(query, max_results)
         
         # Check the tweets with the GPT API
         if v2Model is None:
             keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
         else:
             keep_list = gpt4_check([tweet["rawContent"] for tweet in tweets],v2Model)
-
         
-            
         # Loop through the tweets and the keep list
         for tweet, keep in zip(tweets, keep_list):
             # If the tweet should be kept, yield it
