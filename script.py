@@ -89,27 +89,33 @@ def gpt_check(texts):
     # Initialize a counter variable to keep track of the current index
     i = 0
 
+    # Calculate the maximum number of texts that can be included in a single request
+    step = gpt3_batch_size(prompts)
+    
+    # Limit the number of texts to the maximum number of prompts per request
+    step = min(step, MAX_PROMPTS_PER_REQUEST)
+
     # Loop through the texts
     while i < len(prompts):
-        # Calculate the maximum number of texts that can be included in a single request
-        step = gpt3_batch_size(prompts)
-        
-        # Limit the number of texts to the maximum number of prompts per request
-        step = min(step, MAX_PROMPTS_PER_REQUEST)
         
         # Get a batch of prompts to send to the GPT-3 API
         batch = prompts[i:i + step]
 
         # Send the prompts to the GPT-3 API and get the response
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=batch,
-            temperature=0.7,
-            max_tokens=256,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-        )
+        try:
+            response = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=batch,
+                temperature=0.7,
+                max_tokens=256,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+            )
+        except openai.error.RateLimitError:
+            print("Rate limit hit, will retry in 1 min")
+            time.sleep(61)
+            continue
 
         # Initialize a list to store the lowercase completions
         temp = [""] * len(prompts)
@@ -180,16 +186,8 @@ def search_tweets(queries, max_results):
             # Add the dictionary to the tweets list
             tweets.append(temp)
         
-        # Try to check the tweets with the GPT-3 API
-        try:
-            # Check the tweets with the GPT-3 API
-            keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
-            
-        # If a rate limit error occurs, wait for 1 minute and try again
-        except openai.error.RateLimitError:
-            print("Rate limit hit, will retry in 1 min")
-            time.sleep(61)
-            keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
+        # Check the tweets with the GPT-3 API
+        keep_list = gpt_check([tweet["rawContent"] for tweet in tweets])
             
         # Loop through the tweets and the keep list
         for tweet, keep in zip(tweets, keep_list):
