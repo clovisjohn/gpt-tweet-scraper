@@ -79,17 +79,19 @@ def gpt4_check(texts,v2Model):
     prompts = [FULL_PROMPT.format(tweet=text) for text in texts]
 
     for prompt in prompts:
-        try:
-            response = openai.ChatCompletion.create(
-                model=v2Model,
-                messages=[
-                    {"role": "user", "content": prompt},
-                ],
-            )
-        except openai.error.RateLimitError:
-            print("Rate limit hit, will retry in 1 min")
-            time.sleep(61)
-            continue
+        while True:
+            try:
+                response = openai.ChatCompletion.create(
+                    model=v2Model,
+                    messages=[
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+            except openai.error.RateLimitError:
+                print("Rate limit hit, will retry in 1 min")
+                time.sleep(61)
+                continue
+            break
 
         
         gpt_result = response['choices'][0]['message']['content']
