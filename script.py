@@ -117,8 +117,6 @@ def gpt_check(texts):
     # Format the prompts with the GPT_QUERY and the current texts
     prompts = [FULL_PROMPT.format(tweet=text) for text in texts]
     
-    #print(prompts)
-    #return False;
     # Initialize a counter variable to keep track of the current index
     i = 0
 
