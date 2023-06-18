@@ -2,6 +2,17 @@
 This script searches for tweets matching a list of queries, filter them according to a yes or no gpt query and converts the results to CSV format.
 The model used is text-davinci-003
 
+## Update 06/18/2023
+You can now use the new [chat completion api](https://platform.openai.com/docs/guides/gpt/chat-completions-api). It unlocks recent models like gpt4
+
+To use it, add the option --v2Model followed by the model you want to use.
+
+Example
+  ```bash
+ python script.py --query-file queries.txt --output-file tweets.csv --max-results 10 --v2Model gpt-3.5-turbo   
+  ```
+
+
 ## Requirements
 - Python 3.6 or higher
 
