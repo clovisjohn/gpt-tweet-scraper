@@ -1,5 +1,5 @@
 # gpt-tweet-scraper
-This script searches for tweets matching a list of queries, filter them according to a yes or no gpt query and converts the results to CSV format.
+This script scrapes tweets matching a list of queries, filter them according to a yes or no gpt query and stores the results in a CSV file.
 The model used is text-davinci-003
 
 ## Update 06/18/2023
